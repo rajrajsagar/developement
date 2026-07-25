@@ -26,10 +26,14 @@ resource "aws_iam_role_policy_attachment" "demo-node-AmazonEC2ContainerRegistryR
   role       = aws_iam_role.demo-node.name
 }
 
-# Node Group 1: General Microservices
-resource "aws_eks_node_group" "system_apps" {
+# --------------------------------------------------
+# SYSTEM APPS NODE GROUPS
+# --------------------------------------------------
+resource "aws_eks_node_group" "system_apps_blue" {
+  # Keep defined while 'blue' is active or being drained
+  count           = var.node_color == "blue" || var.node_color == "both" ? 1 : 0
   cluster_name    = aws_eks_cluster.demo.name
-  node_group_name = "system-apps-pool"
+  node_group_name = "system-apps-pool-blue"
   node_role_arn   = aws_iam_role.demo-node.arn
   subnet_ids      = data.aws_subnets.default.ids
 
@@ -48,19 +52,72 @@ resource "aws_eks_node_group" "system_apps" {
   ]
 }
 
-# Node Group 2: GPU Scaling Pool (KServe Engine)
-resource "aws_eks_node_group" "ml_gpu" {
+resource "aws_eks_node_group" "system_apps_green" {
+  count           = var.node_color == "green" || var.node_color == "both" ? 1 : 0
   cluster_name    = aws_eks_cluster.demo.name
-  node_group_name = "ml-gpu-pool"
+  node_group_name = "system-apps-pool-green"
   node_role_arn   = aws_iam_role.demo-node.arn
   subnet_ids      = data.aws_subnets.default.ids
 
-  instance_types = ["t2.medium"] # Lowest-cost entry GPU (NVIDIA L4)
+  instance_types = ["t3.medium"]
+
+  scaling_config {
+    desired_size = 1
+    max_size     = 3
+    min_size     = 1
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.demo-node-AmazonEKSWorkerNodePolicy,
+    aws_iam_role_policy_attachment.demo-node-AmazonEKS_CNI_Policy,
+    aws_iam_role_policy_attachment.demo-node-AmazonEC2ContainerRegistryReadOnly,
+  ]
+}
+
+# --------------------------------------------------
+# ML GPU NODE GROUPS
+# --------------------------------------------------
+resource "aws_eks_node_group" "ml_gpu_blue" {
+  count           = var.node_color == "blue" || var.node_color == "both" ? 1 : 0
+  cluster_name    = aws_eks_cluster.demo.name
+  node_group_name = "ml-gpu-pool-blue"
+  node_role_arn   = aws_iam_role.demo-node.arn
+  subnet_ids      = data.aws_subnets.default.ids
+
+  instance_types = ["t2.medium"]
 
   scaling_config {
     desired_size = 1
     max_size     = 2
-    min_size     = 0 # Can scale completely down to zero when idle
+    min_size     = 0
+  }
+
+  taint {
+    key    = "dedicated"
+    value  = "ml-inference"
+    effect = "NO_SCHEDULE"
+  }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.demo-node-AmazonEKSWorkerNodePolicy,
+    aws_iam_role_policy_attachment.demo-node-AmazonEKS_CNI_Policy,
+    aws_iam_role_policy_attachment.demo-node-AmazonEC2ContainerRegistryReadOnly,
+  ]
+}
+
+resource "aws_eks_node_group" "ml_gpu_green" {
+  count           = var.node_color == "green" || var.node_color == "both" ? 1 : 0
+  cluster_name    = aws_eks_cluster.demo.name
+  node_group_name = "ml-gpu-pool-green"
+  node_role_arn   = aws_iam_role.demo-node.arn
+  subnet_ids      = data.aws_subnets.default.ids
+
+  instance_types = ["t3.medium"] # Can upgrade instance types/AMI here if needed
+
+  scaling_config {
+    desired_size = 1
+    max_size     = 2
+    min_size     = 0
   }
 
   taint {
@@ -77,14 +134,11 @@ resource "aws_eks_node_group" "ml_gpu" {
 }
 
 resource "null_resource" "update_kubeconfig" {
-  # Explicitly wait until the cluster and nodes are fully online
   depends_on = [
-    aws_eks_cluster.demo,
-    aws_eks_node_group.system_apps
+    aws_eks_cluster.demo
   ]
 
   provisioner "local-exec" {
-    # Dynamically injects variables to build the localized configuration file
     command = "aws eks update-kubeconfig --name ${var.cluster_name} --region ${var.aws_region}"
   }
 }

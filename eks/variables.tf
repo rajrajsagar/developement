@@ -18,3 +18,8 @@ variable "caversion" {
   default = "v1.33.0"
 }
 
+variable "node_color" {
+  type        = string
+  default     = "blue"
+  description = "Active node group deployment color (e.g., blue, green)"
+}

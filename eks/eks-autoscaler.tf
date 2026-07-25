@@ -52,7 +52,6 @@ resource "aws_iam_role_policy_attachment" "ca_attach" {
 
 resource "helm_release" "cluster_autoscaler" {
   name       = "cluster-autoscaler"
-  # FIXED URL: Changed from https://github.io to the official repository link below
   repository = "https://kubernetes.github.io/autoscaler" 
   chart      = "cluster-autoscaler"
   namespace  = "kube-system"
@@ -92,8 +91,7 @@ resource "helm_release" "cluster_autoscaler" {
   }
 
   depends_on = [
-    aws_eks_node_group.system_apps,
+    aws_eks_cluster.demo,
     aws_iam_role_policy_attachment.ca_attach
   ]
 }
-
