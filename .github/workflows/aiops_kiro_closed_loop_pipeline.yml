@@ -112,8 +112,13 @@ jobs:
           git config --global user.name "wezvatech-aiops-bot"
           git config --global user.email "aiops-engine@wezvatech.com"
           git add .
+
+          # Only commit if changes were actually made by Kiro
           if ! git diff --quiet || ! git diff --staged --quiet; then
             git commit -m "security(ops): autonomous compliance patch applied via AWS Kiro"
+            
+            # 💡 FIXED: Replaced 'dev' with '${{ github.head_ref }}' to target the exact 
+            # PR branch dynamically, matching how GitHub tracks incoming change streams!
             git push origin HEAD:${{ github.head_ref }}
           fi
 
