@@ -35,14 +35,20 @@ jobs:
         # continue-on-error guarantees that any JSON rendering quirks will never crash the runner
         continue-on-error: true 
         run: |
-          checkov -d . --soft-fail --output json --output-file-path checkov_report.json
+          echo "=== Starting AIOps Code Analysis Gate ==="
           
-          # Safely parse the actual length of the failed_checks array using jq
-          # It handles nested arrays, single objects, or empty results flawlessly
-          VIOLATIONS=$(jq '[.results.failed_checks[]?] | length' checkov_report.json || echo "0")
+          # Run standard checkov scan. We save the regular CLI text report for the Kiro engine.
+          # We use || true to force a clean exit status so the bash environment continues smoothly.
+          checkov -d . --soft-fail > checkov_report.json || true
+          
+          # Count how many times the word "FAILED" appears in the structural text output
+          VIOLATIONS=$(grep -c "FAILED for resource" checkov_report.json || echo "0")
           
           echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
-          echo "Validated AIOps Metric Target: Found $VIOLATIONS actionable security vulnerabilities."
+          echo "======================================================="
+          echo "📊 AIOps Pipeline Metrics Collected!"
+          echo "Actionable Security Vulnerabilities Found: $VIOLATIONS"
+          echo "======================================================="
 
       # 2. IF VIOLATIONS EXIST, NOTIFY USER & EXECUTE KIRO
       - name: Install AWS Kiro CLI
