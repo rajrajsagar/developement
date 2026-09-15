@@ -54,7 +54,7 @@ jobs:
       # 3. INTERACTIVE CLASSROOM GATEWAY: DEVICE FLOW LOGIN
       - name: Interactive Live AIOps Authentication
         if: steps.run_scan.outputs.violations > 0
-        timeout-minutes: 5 # Gives the class up to 5 minutes to complete the live link validation
+        timeout-minutes: 5 
         run: |
           echo "=========================================================================="
           echo "🚨 ATTENTION INSTRUCTOR / STUDENTS: LIVE OAUTH APPROVAL REQUIRED 🚨"
@@ -62,9 +62,8 @@ jobs:
           
           export PATH="$HOME/.kiro/bin:$PATH"
           
-          # We execute via script allocation to trick the engine into creating a fake terminal,
-          # and output the stream directly to a text log file we can read.
-          script -q -c "kiro-cli login --use-device-flow" kiro_login_output.log &
+          # 💡 Added '--login-provider Github' to bypass the selection menu entirely!
+          script -q -c "kiro-cli login --use-device-flow --login-provider Github" kiro_login_output.log &
           
           echo "Waiting 10 seconds for Kiro to generate your unique OAuth link..."
           sleep 10
@@ -77,7 +76,6 @@ jobs:
           
           # This loop keeps the runner awake while you approve the URL from your phone or browser
           for i in {1..60}; do
-            # 💡 FIXED: Changed 's' to checking file existence/size properly via standard bash flags
             if [ -f "$HOME/.config/kiro-cli/cli.json" ]; then
                echo "✅ Live Authentication Verification Success! Continuing pipeline..."
                break
