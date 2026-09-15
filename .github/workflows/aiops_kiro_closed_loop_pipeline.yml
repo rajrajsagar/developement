@@ -93,20 +93,20 @@ jobs:
         run: |
           echo "=== Initiating Autonomous Infrastructure Patching ==="
           
-          # We read the active credential token value straight from the flattened file structures
-          # and export it globally to ensure the engine bypasses browser lookups entirely.
-          TOKEN_VALUE=$(cat $HOME/.config/kiro-cli/token* 2>/dev/null || cat $HOME/.config/kiro-cli/credentials* 2>/dev/null || echo "none")
+          cat << EOF > patch_prompt.txt
+          You are an automated AIOps code remediation agent. Review the following infrastructure vulnerabilities:
+          $(cat checkov_report.json)
           
-          # Execute the agent natively using structural environment variable path bindings
-          KIRO_CONFIG_DIR="$HOME/.config/kiro-cli" \
-          XDG_CONFIG_HOME="$HOME/.config" \
-          HOME="$HOME" \
-          KIRO_AUTH_TOKEN="$TOKEN_VALUE" \
-          kiro-cli chat \
-            --trust-all-tools \
-            --no-interactive \
-            "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to demo/main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md."
-    
+          Apply the exact HCL fixes to the file demo/main.tf matching the structural requirements outlined here:
+          $(cat ../.kiro/security-guardrails.md)
+          
+          Execute the modifications to demo/main.tf immediately.
+          EOF
+          
+          # Pass the fully expanded stream straight to the CLI tool
+          cat patch_prompt.txt | kiro-cli chat --trust-all-tools --no-interactive
+
+  
       # 3. COMMIT CLEAN CODE BACK TO PR
       - name: Commit & Push Patches to PR Branch
         if: steps.run_scan.outputs.violations > 0
