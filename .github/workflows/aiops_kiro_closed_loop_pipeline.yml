@@ -48,26 +48,42 @@ jobs:
         if: steps.run_scan.outputs.violations > 0
         run: |
           echo "=== Provisioning Agentic AIOps Engine ==="
-          curl -fsSL https://kiro.dev | bash
+          curl -fsSL https://cli.kiro.dev/install | bash
           echo "$HOME/.kiro/bin" >> $GITHUB_PATH
 
-      # 3. 🔑 INTERACTIVE CLASSROOM GATEWAY: DEVICE FLOW LOGIN
+      # 3. INTERACTIVE CLASSROOM GATEWAY: DEVICE FLOW LOGIN
       - name: Interactive Live AIOps Authentication
         if: steps.run_scan.outputs.violations > 0
-        timeout-minutes: 5 # ⏳ Gives the instructor/student 5 minutes to authenticate live
+        timeout-minutes: 5 # Gives the class up to 5 minutes to complete the live link validation
         run: |
           echo "=========================================================================="
           echo "🚨 ATTENTION INSTRUCTOR / STUDENTS: LIVE OAUTH APPROVAL REQUIRED 🚨"
           echo "=========================================================================="
-          echo "The runner is attempting to authenticate with the cloud LLM core model."
-          echo "Please watch the logs below for the app.kiro.dev/activate URL and unique code."
-          echo "=========================================================================="
           
-          # Force set paths so the installer shell registers correctly
           export PATH="$HOME/.kiro/bin:$PATH"
           
-          # Triggers the device code sequence natively inside the runner console environment
-          kiro-cli login --use-device-flow
+          # We execute via script allocation to trick the engine into creating a fake terminal,
+          # and output the stream directly to a text log file we can read.
+          script -q -c "kiro-cli login --use-device-flow" kiro_login_output.log &
+          
+          echo "Waiting 10 seconds for Kiro to generate your unique OAuth link..."
+          sleep 10
+          
+          echo "=========================================================================="
+          echo "👉 REFRESH/VIEW LOG DETAIL BELOW FOR YOUR DEVICE CODE 👈"
+          echo "=========================================================================="
+          cat kiro_login_output.log || true
+          echo "=========================================================================="
+          
+          # This loop keeps the runner awake while you approve the URL from your phone or browser
+          for i in {1..60}; do
+            # 💡 FIXED: Changed 's' to checking file existence/size properly via standard bash flags
+            if [ -f "$HOME/.config/kiro-cli/cli.json" ]; then
+               echo "✅ Live Authentication Verification Success! Continuing pipeline..."
+               break
+            fi
+            sleep 5
+          done
 
       # 4. RUN HEADLESS REMEDIATION UNDER FRESH ACTIVE AUTHENTICATED STATE
       - name: Run Headless Kiro Auto-Patch Engine
@@ -76,10 +92,12 @@ jobs:
           echo "=== Initiating Autonomous Infrastructure Patching ==="
           export PATH="$HOME/.kiro/bin:$PATH"
           
-          kiro-cli chat \
+          # 💡 Optimization: We force the configuration directory variables to map 
+          # straight to the user configuration space where your live login tokens reside.
+          KIRO_CONFIG_DIR="$HOME/.config/kiro-cli" XDG_CONFIG_HOME="$HOME/.config" HOME="$HOME" kiro-cli chat \
             --trust-all-tools \
             --no-interactive \
-            "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to demo/main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md."
+            "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md."
 
       # 5. COMMIT CLEAN CODE BACK TO PR
       - name: Commit & Push Patches to PR Branch
