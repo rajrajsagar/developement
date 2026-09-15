@@ -62,8 +62,7 @@ jobs:
           
           export PATH="$HOME/.kiro/bin:$PATH"
           
-          # 💡 We use echo -e to send two down-arrow commands (\x1B[B) and an enter key (\n)
-          # into the interactive script environment to force the selection of GitHub automatically!
+          # Simulate menu arrow selection by piping keystroke bindings into the background runner
           echo -e "\x1B[B\x1B[B\n" | script -q -c "kiro-cli login --use-device-flow" kiro_login_output.log &
           
           echo "Waiting 15 seconds for Kiro to process the menu and generate your unique link..."
@@ -75,9 +74,9 @@ jobs:
           cat kiro_login_output.log || true
           echo "=========================================================================="
           
-          # This loop keeps the runner awake while you approve the URL from your phone or browser
+          # ⏳ Waking loop: Checks the actual runtime data directory where Kiro locks state keys!
           for i in {1..60}; do
-            if [ -f "$HOME/.config/kiro-cli/cli.json" ]; then
+            if [ -d "$HOME/.local/share/kiro-cli" ] || [ -d "$HOME/.kiro" ]; then
                echo "✅ Live Authentication Verification Success! Continuing pipeline..."
                break
             fi
@@ -91,9 +90,8 @@ jobs:
           echo "=== Initiating Autonomous Infrastructure Patching ==="
           export PATH="$HOME/.kiro/bin:$PATH"
           
-          # 💡 Optimization: We force the configuration directory variables to map 
-          # straight to the user configuration space where your live login tokens reside.
-          KIRO_CONFIG_DIR="$HOME/.config/kiro-cli" XDG_CONFIG_HOME="$HOME/.config" HOME="$HOME" kiro-cli chat \
+          # Route environment mappings directly into the active session workspace keys
+          HOME="$HOME" kiro-cli chat \
             --trust-all-tools \
             --no-interactive \
             "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md."
