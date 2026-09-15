@@ -61,6 +61,15 @@ jobs:
           echo "$HOME/.kiro/bin" >> $GITHUB_PATH
           echo "Kiro CLI installation stream deployed."
 
+      - name: Hydrate Free Tier Session State
+        if: steps.run_scan.outputs.violations > 0
+        env:
+          SESSION_DATA: ${{ secrets.KIRO_SESSION_DATA }}
+        run: |
+          echo "=== Hydrating Authenticated Session State ==="
+          echo "$SESSION_DATA" | base64 --decode | tar -xzf - -C "$HOME"
+          echo "Headless pipeline session hydrated successfully."
+          
       - name: Run Headless Kiro Auto-Patch Engine
         if: steps.run_scan.outputs.violations > 0
         run: |
@@ -68,8 +77,8 @@ jobs:
           kiro-cli chat \
             --trust-all-tools \
             --no-interactive \
-            "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to demo/main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md."
-
+            "Review the infrastructure vulnerabilities logged in checkov_report.j
+         
       # 3. COMMIT CLEAN CODE BACK TO PR
       - name: Commit & Push Patches to PR Branch
         if: steps.run_scan.outputs.violations > 0
