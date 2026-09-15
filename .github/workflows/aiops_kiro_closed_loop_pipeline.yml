@@ -67,8 +67,29 @@ jobs:
           SESSION_DATA: ${{ secrets.KIRO_SESSION_DATA }}
         run: |
           echo "=== Hydrating Authenticated Session State ==="
+          
+          # 1. Unpack to the current home directory
           echo "$SESSION_DATA" | base64 --decode | tar -xzf - -C "$HOME"
-          echo "Headless pipeline session hydrated successfully."
+          
+          # 2. Diagnostic Print: Show exactly where the files landed
+          echo "--- Directory Structure Debug ---"
+          echo "Home directory contents:"
+          ls -la "$HOME"
+          echo "Config folder contents:"
+          ls -la "$HOME/.config" || echo ".config folder missing"
+          
+          # 3. Create a safety mirror: Copy session files into BOTH possible directories
+          # so Kiro CLI will find them no matter which directory it looks in!
+          if [ -d "$HOME/.config/kiro-cli" ]; then
+             cp -r "$HOME/.config/kiro-cli" "$HOME/.kiro" 2>/dev/null || true
+          fi
+          if [ -d "$HOME/.kiro" ]; then
+             mkdir -p "$HOME/.config"
+             cp -r "$HOME/.kiro" "$HOME/.config/kiro-cli" 2>/dev/null || true
+          fi
+          
+          echo "Headless pipeline session hydrated and mirrored successfully."
+
           
       - name: Run Headless Kiro Auto-Patch Engine
         if: steps.run_scan.outputs.violations > 0
