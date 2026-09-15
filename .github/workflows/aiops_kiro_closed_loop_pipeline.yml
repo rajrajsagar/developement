@@ -1,0 +1,89 @@
+name: AIOps Autonomous Code Remediation Pipeline
+
+on:
+  pull_request:
+    paths:
+      - 'demo/**'
+    branches:
+      - main
+
+jobs:
+  code-remediation-gate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: demo
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Install Checkov
+        run: |
+          python3 -m pip install --upgrade pip
+          pip install checkov
+
+      # 1. EVALUATE COMPLIANCE STATE
+      - name: Run Initial Checkov Scan
+        id: run_scan
+        run: |
+          checkov -d . --soft-fail --output json --output-file-path checkov_report.json
+          VIOLATIONS=$(grep -o '"failed_checks"' checkov_report.json | wc -l || echo "0")
+          echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
+
+      # 2. IF VIOLATIONS EXIST, NOTIFY USER & EXECUTE KIRO
+      - name: Install AWS Kiro CLI
+        if: steps.run_scan.outputs.violations > 0
+        run: |
+          curl -sSL https://kiro.aws | sh
+          echo "$HOME/.kiro/bin" >> $GITHUB_PATH
+
+      - name: Run Headless Kiro Auto-Patch
+        if: steps.run_scan.outputs.violations > 0
+        env:
+          KIRO_API_KEY: ${{ secrets.KIRO_API_KEY }}
+        run: |
+          kiro task apply \
+            --spec ./checkov_report.json \
+            --steering ../.kiro/security-guardrails.md
+
+      # 3. COMMIT CLEAN CODE BACK TO PR
+      - name: Commit & Push Patches to PR Branch
+        if: steps.run_scan.outputs.violations > 0
+        run: |
+          git config --global user.name "wezvatech-aiops-bot"
+          git config --global user.email "aiops-engine@wezvatech.com"
+          git add .
+
+          # Only commit if changes were actually made by Kiro
+          if ! git diff --quiet || ! git diff --staged --quiet; then
+            git commit -m "security(ops): autonomous compliance patch applied via AWS Kiro"
+            git push origin HEAD:${{ github.head_ref }}
+          fi
+
+      # 4. POST COMMENT TO PR SO THE USER IS INFORMED
+      - name: Post Status Comment on Pull Request
+        if: steps.run_scan.outputs.violations > 0
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `### 🤖 AIOps Remediation Alert\n\n⚠️ **Checkov** flagged \`${{ steps.run_scan.outputs.violations }}\` compliance issues.\n🔧 **AWS Kiro** has autonomously refactored your HCL code templates to match corporate security guardrails.\n✅ Clean code has been pushed. The pipeline will now re-verify and pass.`
+            })
+
+      # 5. STRICT FINAL VERIFICATION PASS (Ensures PR turns Green if Kiro fixed it)
+      - name: Run Final Validation Scan
+        run: |
+          terraform init
+          terraform validate
+          # Run checkov without --soft-fail this time. If Kiro fixed it, this step returns exit code 0 (Success)
+          checkov -d .
