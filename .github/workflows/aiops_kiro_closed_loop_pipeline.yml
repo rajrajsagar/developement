@@ -74,9 +74,13 @@ jobs:
           cat kiro_login_output.log || true
           echo "=========================================================================="
           
-          # ⏳ Waking loop: Checks the actual runtime data directory where Kiro locks state keys!
+          # ⏳ Waking loop: We search specifically for the creation of credential files
+          # inside the tracking directories. The loop will ONLY exit after you approve the URL!
           for i in {1..60}; do
-            if [ -d "$HOME/.local/share/kiro-cli" ] || [ -d "$HOME/.kiro" ]; then
+            if [ -f "$HOME/.local/share/kiro-cli/credentials.json" ] || \
+               [ -f "$HOME/.local/share/kiro-cli/session.json" ] || \
+               [ -f "$HOME/.kiro/credentials.json" ] || \
+               [ -f "$HOME/.config/kiro-cli/cli.json" ]; then
                echo "✅ Live Authentication Verification Success! Continuing pipeline..."
                break
             fi
