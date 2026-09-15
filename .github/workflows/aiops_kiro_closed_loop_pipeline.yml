@@ -54,15 +54,19 @@ jobs:
       - name: Install AWS Kiro CLI
         if: steps.run_scan.outputs.violations > 0
         run: |
-          curl -sSL https://kiro.aws | sh
+          echo "=== Provisioning Agentic AIOps Engine ==="
+          # 💡 Updated to official installation endpoint URL
+          curl -fsSL https://cli.kiro.dev/install | bash
+          
+          # Force set binary location straight to system environment variables path
           echo "$HOME/.kiro/bin" >> $GITHUB_PATH
+          echo "Kiro CLI installation stream deployed."
 
-      - name: Run Headless Kiro Auto-Patch
+      - name: Run Headless Kiro Auto-Patch Engine
         if: steps.run_scan.outputs.violations > 0
-        env:
-          KIRO_API_KEY: ${{ secrets.KIRO_API_KEY }}
         run: |
-          kiro task apply \
+          echo "=== Initiating Autonomous Infrastructure Patching ==="
+          kiro-cli task apply \
             --spec ./checkov_report.json \
             --steering ../.kiro/security-guardrails.md
 
