@@ -62,11 +62,12 @@ jobs:
           
           export PATH="$HOME/.kiro/bin:$PATH"
           
-          # 💡 Updated flag parameter configurations precisely to match your runner logs!
-          script -q -c "kiro-cli login --use-device-flow --identity-provider github" kiro_login_output.log &
+          # 💡 We use echo -e to send two down-arrow commands (\x1B[B) and an enter key (\n)
+          # into the interactive script environment to force the selection of GitHub automatically!
+          echo -e "\x1B[B\x1B[B\n" | script -q -c "kiro-cli login --use-device-flow" kiro_login_output.log &
           
-          echo "Waiting 10 seconds for Kiro to generate your unique OAuth link..."
-          sleep 10
+          echo "Waiting 15 seconds for Kiro to process the menu and generate your unique link..."
+          sleep 15
           
           echo "=========================================================================="
           echo "👉 REFRESH/VIEW LOG DETAIL BELOW FOR YOUR DEVICE CODE 👈"
