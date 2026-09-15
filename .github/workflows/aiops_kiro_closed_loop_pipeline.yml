@@ -77,7 +77,7 @@ jobs:
           kiro-cli chat \
             --trust-all-tools \
             --no-interactive \
-            "Review the infrastructure vulnerabilities logged in checkov_report.j
+            "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to demo/main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md."
          
       # 3. COMMIT CLEAN CODE BACK TO PR
       - name: Commit & Push Patches to PR Branch
