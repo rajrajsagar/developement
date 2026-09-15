@@ -62,8 +62,8 @@ jobs:
           
           export PATH="$HOME/.kiro/bin:$PATH"
           
-          # 💡 Added '--login-provider Github' to bypass the selection menu entirely!
-          script -q -c "kiro-cli login --use-device-flow --login-provider Github" kiro_login_output.log &
+          # 💡 Updated flag parameter configurations precisely to match your runner logs!
+          script -q -c "kiro-cli login --use-device-flow --identity-provider github" kiro_login_output.log &
           
           echo "Waiting 10 seconds for Kiro to generate your unique OAuth link..."
           sleep 10
