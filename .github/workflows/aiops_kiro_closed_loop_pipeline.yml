@@ -67,39 +67,29 @@ jobs:
           SESSION_DATA: ${{ secrets.KIRO_SESSION_DATA }}
         run: |
           echo "=== Hydrating Authenticated Session State ==="
-          
-          # 1. Unpack to the current home directory
+          # 1. Unpack the compressed base64 string
           echo "$SESSION_DATA" | base64 --decode | tar -xzf - -C "$HOME"
           
-          # 2. Diagnostic Print: Show exactly where the files landed
-          echo "--- Directory Structure Debug ---"
-          echo "Home directory contents:"
-          ls -la "$HOME"
-          echo "Config folder contents:"
-          ls -la "$HOME/.config" || echo ".config folder missing"
-          
-          # 3. Create a safety mirror: Copy session files into BOTH possible directories
-          # so Kiro CLI will find them no matter which directory it looks in!
-          if [ -d "$HOME/.config/kiro-cli" ]; then
-             cp -r "$HOME/.config/kiro-cli" "$HOME/.kiro" 2>/dev/null || true
-          fi
+          # 2. Hard Link/Copy the session states straight into the expected .config path
+          mkdir -p "$HOME/.config/kiro-cli"
           if [ -d "$HOME/.kiro" ]; then
-             mkdir -p "$HOME/.config"
-             cp -r "$HOME/.kiro" "$HOME/.config/kiro-cli" 2>/dev/null || true
+            cp -r "$HOME/.kiro/"* "$HOME/.config/kiro-cli/" 2>/dev/null || true
           fi
           
-          echo "Headless pipeline session hydrated and mirrored successfully."
+          echo "=== Enforcing Token Location Directory Verification ==="
+          ls -la "$HOME/.config/kiro-cli" || echo "Symlink mapping unresolved"
 
-          
       - name: Run Headless Kiro Auto-Patch Engine
         if: steps.run_scan.outputs.violations > 0
         run: |
           echo "=== Initiating Autonomous Infrastructure Patching ==="
-          kiro-cli chat \
+          
+          # reads your active EC2 authentication profile without spawning a desktop browser!
+          KIRO_CONFIG_DIR="$HOME/.config/kiro-cli" XDG_CONFIG_HOME="$HOME/.config" HOME="$HOME" kiro-cli chat \
             --trust-all-tools \
             --no-interactive \
             "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to demo/main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md."
-         
+     
       # 3. COMMIT CLEAN CODE BACK TO PR
       - name: Commit & Push Patches to PR Branch
         if: steps.run_scan.outputs.violations > 0
