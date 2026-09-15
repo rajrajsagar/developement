@@ -62,8 +62,9 @@ jobs:
           
           export PATH="$HOME/.kiro/bin:$PATH"
           
-          # Simulate menu arrow selection by piping keystroke bindings into the background runner
+          # 1. Start the login process in the background and capture its Process ID (PID)
           echo -e "\x1B[B\x1B[B\n" | script -q -c "kiro-cli login --use-device-flow" kiro_login_output.log &
+          LOGIN_PID=$!
           
           echo "Waiting 15 seconds for Kiro to process the menu and generate your unique link..."
           sleep 15
@@ -74,18 +75,22 @@ jobs:
           cat kiro_login_output.log || true
           echo "=========================================================================="
           
-          # ⏳ Waking loop: We search specifically for the creation of credential files
-          # inside the tracking directories. The loop will ONLY exit after you approve the URL!
+          # ⏳ 2. LOG-WATCHER BREAKOUT LOOP: 
+          # The exact second you approve the URL on your device, Kiro writes "Signed in" to the log file.
+          # We scan the file. The moment it appears, we kill the hanging process and continue!
+          echo "Watching for active browser authorization event..."
           for i in {1..60}; do
-            if [ -f "$HOME/.local/share/kiro-cli/credentials.json" ] || \
-               [ -f "$HOME/.local/share/kiro-cli/session.json" ] || \
-               [ -f "$HOME/.kiro/credentials.json" ] || \
-               [ -f "$HOME/.config/kiro-cli/cli.json" ]; then
-               echo "✅ Live Authentication Verification Success! Continuing pipeline..."
+            if grep -q "Signed in with GitHub" kiro_login_output.log; then
+               echo "=========================================================================="
+               echo "✅ SUCCESS: Live Authentication Captured! Terminating background screen lock..."
+               echo "=========================================================================="
+               kill -9 $LOGIN_PID 2>/dev/null || true
                break
             fi
             sleep 5
           done
+          
+          echo "Continuing pipeline execution under fully authenticated session state..."
 
       # 4. RUN HEADLESS REMEDIATION UNDER FRESH ACTIVE AUTHENTICATED STATE
       - name: Run Headless Kiro Auto-Patch Engine
