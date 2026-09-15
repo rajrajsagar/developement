@@ -70,26 +70,43 @@ jobs:
           # 1. Unpack the compressed base64 string
           echo "$SESSION_DATA" | base64 --decode | tar -xzf - -C "$HOME"
           
-          # 2. Hard Link/Copy the session states straight into the expected .config path
+          # 2. Hard-map target directories
           mkdir -p "$HOME/.config/kiro-cli"
+          
+          # 3. 💡 THE FLATTENING LAYER: Copy hidden settings/ tokens out of subdirectories 
+          # and paste them directly into the root configuration path where the tool can see them
+          if [ -d "$HOME/.config/kiro-cli/settings" ]; then
+            cp -r "$HOME/.config/kiro-cli/settings/"* "$HOME/.config/kiro-cli/" 2>/dev/null || true
+          fi
+          if [ -d "$HOME/.kiro/settings" ]; then
+            cp -r "$HOME/.kiro/settings/"* "$HOME/.config/kiro-cli/" 2>/dev/null || true
+          fi
           if [ -d "$HOME/.kiro" ]; then
             cp -r "$HOME/.kiro/"* "$HOME/.config/kiro-cli/" 2>/dev/null || true
           fi
           
           echo "=== Enforcing Token Location Directory Verification ==="
-          ls -la "$HOME/.config/kiro-cli" || echo "Symlink mapping unresolved"
+          ls -la "$HOME/.config/kiro-cli"
 
       - name: Run Headless Kiro Auto-Patch Engine
         if: steps.run_scan.outputs.violations > 0
         run: |
           echo "=== Initiating Autonomous Infrastructure Patching ==="
           
-          # reads your active EC2 authentication profile without spawning a desktop browser!
-          KIRO_CONFIG_DIR="$HOME/.config/kiro-cli" XDG_CONFIG_HOME="$HOME/.config" HOME="$HOME" kiro-cli chat \
+          # We read the active credential token value straight from the flattened file structures
+          # and export it globally to ensure the engine bypasses browser lookups entirely.
+          TOKEN_VALUE=$(cat $HOME/.config/kiro-cli/token* 2>/dev/null || cat $HOME/.config/kiro-cli/credentials* 2>/dev/null || echo "none")
+          
+          # Execute the agent natively using structural environment variable path bindings
+          KIRO_CONFIG_DIR="$HOME/.config/kiro-cli" \
+          XDG_CONFIG_HOME="$HOME/.config" \
+          HOME="$HOME" \
+          KIRO_AUTH_TOKEN="$TOKEN_VALUE" \
+          kiro-cli chat \
             --trust-all-tools \
             --no-interactive \
             "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to demo/main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md."
-     
+    
       # 3. COMMIT CLEAN CODE BACK TO PR
       - name: Commit & Push Patches to PR Branch
         if: steps.run_scan.outputs.violations > 0
