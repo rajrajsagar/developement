@@ -55,7 +55,6 @@ jobs:
         if: steps.run_scan.outputs.violations > 0
         run: |
           echo "=== Provisioning Agentic AIOps Engine ==="
-          # 💡 Updated to official installation endpoint URL
           curl -fsSL https://cli.kiro.dev/install | bash
           
           # Force set binary location straight to system environment variables path
@@ -66,9 +65,10 @@ jobs:
         if: steps.run_scan.outputs.violations > 0
         run: |
           echo "=== Initiating Autonomous Infrastructure Patching ==="
-          kiro-cli task apply \
-            --spec ./checkov_report.json \
-            --steering ../.kiro/security-guardrails.md
+          kiro-cli chat \
+            --trust-all-tools \
+            --no-interactive \
+            "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to demo/main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md."
 
       # 3. COMMIT CLEAN CODE BACK TO PR
       - name: Commit & Push Patches to PR Branch
