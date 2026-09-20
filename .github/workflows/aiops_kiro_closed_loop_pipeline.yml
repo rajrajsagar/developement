@@ -13,6 +13,10 @@ jobs:
     defaults:
       run:
         working-directory: demo
+        
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout Code
