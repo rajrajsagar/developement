@@ -47,7 +47,7 @@ jobs:
           pip install checkov
 
       - name: Run Checkov Scan
-        run: checkov -d . --soft-fail
+        run: checkov -d . --soft-fail --skip-path .terraform --compact
 
       - name: terraform plan
         run: terraform plan
