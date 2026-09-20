@@ -16,11 +16,30 @@ terraform {
   }
 }
 
+# Data source to resolve current AWS account ID for use in KMS key policy
+data "aws_caller_identity" "current" {}
+
 # Customer-managed KMS key for EFS encryption (resolves CKV_AWS_184)
 resource "aws_kms_key" "efs_cmk" {
   description             = "CMK for wezvatech-sandbox-efs encryption"
   deletion_window_in_days = 30
   enable_key_rotation     = true
+
+  # Explicit key policy (resolves CKV2_AWS_64)
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "EnableRootAccountAccess"
+        Effect = "Allow"
+        Principal = {
+          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
+        }
+        Action   = "kms:*"
+        Resource = "*"
+      }
+    ]
+  })
 
   tags = {
     Name        = "wezvatech-sandbox-efs-cmk"
