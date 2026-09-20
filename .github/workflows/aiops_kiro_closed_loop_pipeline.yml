@@ -144,4 +144,5 @@ jobs:
         run: |
           terraform init
           terraform validate
-          checkov -d .
+          rm -f checkov_report.json kiro_login_output.log
+          checkov -d . --skip-path .terraform
