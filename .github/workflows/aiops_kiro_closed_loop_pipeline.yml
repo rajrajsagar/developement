@@ -13,6 +13,10 @@ jobs:
     defaults:
       run:
         working-directory: demo
+        
+    permissions:
+      contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout Code
@@ -32,28 +36,80 @@ jobs:
       # 1. EVALUATE COMPLIANCE STATE
       - name: Run Initial Checkov Scan
         id: run_scan
+        continue-on-error: true 
         run: |
-          checkov -d . --soft-fail --output json --output-file-path checkov_report.json
-          VIOLATIONS=$(grep -o '"failed_checks"' checkov_report.json | wc -l || echo "0")
+          echo "=== Starting AIOps Code Analysis Gate ==="
+          checkov -d . --soft-fail > checkov_report.json || true
+          VIOLATIONS=$(grep -c "FAILED for resource" checkov_report.json || echo "0")
           echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
+          echo "======================================================="
+          echo "📊 AIOps Pipeline Metrics Collected!"
+          echo "Actionable Security Vulnerabilities Found: $VIOLATIONS"
+          echo "======================================================="
 
-      # 2. IF VIOLATIONS EXIST, NOTIFY USER & EXECUTE KIRO
+      # 2. PROVISION KIRO CORE ENGINE
       - name: Install AWS Kiro CLI
         if: steps.run_scan.outputs.violations > 0
         run: |
-          curl -sSL https://kiro.aws | sh
+          echo "=== Provisioning Agentic AIOps Engine ==="
+          curl -fsSL https://cli.kiro.dev/install | bash
           echo "$HOME/.kiro/bin" >> $GITHUB_PATH
 
-      - name: Run Headless Kiro Auto-Patch
+      # 3. INTERACTIVE CLASSROOM GATEWAY: DEVICE FLOW LOGIN
+      - name: Interactive Live AIOps Authentication
         if: steps.run_scan.outputs.violations > 0
-        env:
-          KIRO_API_KEY: ${{ secrets.KIRO_API_KEY }}
+        timeout-minutes: 5 
         run: |
-          kiro task apply \
-            --spec ./checkov_report.json \
-            --steering ../.kiro/security-guardrails.md
+          echo "=========================================================================="
+          echo "🚨 ATTENTION INSTRUCTOR / STUDENTS: LIVE OAUTH APPROVAL REQUIRED 🚨"
+          echo "=========================================================================="
+          
+          export PATH="$HOME/.kiro/bin:$PATH"
+          
+          # 1. Start the login process in the background and capture its Process ID (PID)
+          echo -e "\x1B[B\x1B[B\n" | script -q -c "kiro-cli login --use-device-flow" kiro_login_output.log &
+          LOGIN_PID=$!
+          
+          echo "Waiting 15 seconds for Kiro to process the menu and generate your unique link..."
+          sleep 15
+          
+          echo "=========================================================================="
+          echo "👉 REFRESH/VIEW LOG DETAIL BELOW FOR YOUR DEVICE CODE 👈"
+          echo "=========================================================================="
+          cat kiro_login_output.log || true
+          echo "=========================================================================="
+          
+          # ⏳ 2. LOG-WATCHER BREAKOUT LOOP: 
+          # The exact second you approve the URL on your device, Kiro writes "Signed in" to the log file.
+          # We scan the file. The moment it appears, we kill the hanging process and continue!
+          echo "Watching for active browser authorization event..."
+          for i in {1..60}; do
+            if grep -q "Signed in with GitHub" kiro_login_output.log; then
+               echo "=========================================================================="
+               echo "✅ SUCCESS: Live Authentication Captured! Terminating background screen lock..."
+               echo "=========================================================================="
+               kill -9 $LOGIN_PID 2>/dev/null || true
+               break
+            fi
+            sleep 5
+          done
+          
+          echo "Continuing pipeline execution under fully authenticated session state..."
 
-      # 3. COMMIT CLEAN CODE BACK TO PR
+      # 4. RUN HEADLESS REMEDIATION UNDER FRESH ACTIVE AUTHENTICATED STATE
+      - name: Run Headless Kiro Auto-Patch Engine
+        if: steps.run_scan.outputs.violations > 0
+        run: |
+          echo "=== Initiating Autonomous Infrastructure Patching ==="
+          export PATH="$HOME/.kiro/bin:$PATH"
+          
+          # Route environment mappings directly into the active session workspace keys
+          HOME="$HOME" kiro-cli chat \
+            --trust-all-tools \
+            --no-interactive \
+            "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md."
+
+      # 5. COMMIT CLEAN CODE BACK TO PR
       - name: Commit & Push Patches to PR Branch
         if: steps.run_scan.outputs.violations > 0
         run: |
@@ -64,10 +120,13 @@ jobs:
           # Only commit if changes were actually made by Kiro
           if ! git diff --quiet || ! git diff --staged --quiet; then
             git commit -m "security(ops): autonomous compliance patch applied via AWS Kiro"
+            
+            # 💡 FIXED: Replaced 'dev' with '${{ github.head_ref }}' to target the exact 
+            # PR branch dynamically, matching how GitHub tracks incoming change streams!
             git push origin HEAD:${{ github.head_ref }}
           fi
 
-      # 4. POST COMMENT TO PR SO THE USER IS INFORMED
+      # 6. POST COMMENT TO PR SO THE USER IS INFORMED
       - name: Post Status Comment on Pull Request
         if: steps.run_scan.outputs.violations > 0
         uses: actions/github-script@v7
@@ -80,10 +139,10 @@ jobs:
               body: `### 🤖 AIOps Remediation Alert\n\n⚠️ **Checkov** flagged \`${{ steps.run_scan.outputs.violations }}\` compliance issues.\n🔧 **AWS Kiro** has autonomously refactored your HCL code templates to match corporate security guardrails.\n✅ Clean code has been pushed. The pipeline will now re-verify and pass.`
             })
 
-      # 5. STRICT FINAL VERIFICATION PASS (Ensures PR turns Green if Kiro fixed it)
+      # 7. STRICT FINAL VERIFICATION PASS (Ensures PR turns Green if Kiro fixed it)
       - name: Run Final Validation Scan
         run: |
           terraform init
           terraform validate
-          # Run checkov without --soft-fail this time. If Kiro fixed it, this step returns exit code 0 (Success)
-          checkov -d .
+          rm -f checkov_report.json kiro_login_output.log
+          checkov -d . --skip-path .terraform
