@@ -47,11 +47,11 @@ resource "aws_kms_key" "efs_cmk" {
   }
 }
 
-# ❌ Violation 1: EFS File System deployed without encryption enabled
+# ✅ Fixed: EFS File System with encryption enabled and CMK mapped (resolves CKV_AWS_42, CKV_AWS_184)
 resource "aws_efs_file_system" "demo_efs" {
   creation_token = "wezvatech-aiops-demo"
-  encrypted      = false # Explicit policy violation (Should be true)
-  #kms_key_id     = aws_kms_key.efs_cmk.arn
+  encrypted      = true
+  kms_key_id     = aws_kms_key.efs_cmk.arn
 
   tags = {
     Name        = "wezvatech-sandbox-efs"
