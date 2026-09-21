@@ -35,22 +35,27 @@ jobs:
           pip install checkov
 
       # 1. EVALUATE COMPLIANCE STATE
-      # 1. EVALUATE COMPLIANCE STATE
       - name: Run Initial Checkov Scan
         id: run_scan
         continue-on-error: true 
         run: |
           echo "=== Starting AIOps Code Analysis Gate ==="
-          checkov -d . --soft-fail > checkov_report.json || true
           
-          VIOLATIONS_COUNT=$(grep -c "FAILED for resource" checkov_report.json || echo "0")
+          # 🔑 SILENT JSON: Outputs the report cleanly to file, routing stdout noise out of the path wrapper
+          checkov -d . --soft-fail --output json --output-file-path checkov_report.json > /dev/null 2>&1 || true
           
-          echo "violations=$VIOLATIONS_COUNT" >> "$GITHUB_OUTPUT"
+          # Compute count cleanly from the structured JSON file without terminal leak risks
+          VIOLATIONS_COUNT=$(grep -c '"failed_checks"' checkov_report.json || echo "0")
           
           echo "======================================================="
           echo "📊 AIOps Pipeline Metrics Collected!"
           echo "Actionable Security Vulnerabilities Found: $VIOLATIONS_COUNT"
           echo "======================================================="
+          
+          # Safe multiline environment block
+          echo "violations<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$VIOLATIONS_COUNT" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
 
       # 2. PROVISION KIRO CORE ENGINE
       - name: Install AWS Kiro CLI
@@ -143,6 +148,7 @@ jobs:
               repo: context.repo.repo,
               body: commentBody
             })
+
 
       # 7. STRICT FINAL VERIFICATION PASS (Ensures PR turns Green if Kiro fixed it)
       - name: Run Final Validation Scan
