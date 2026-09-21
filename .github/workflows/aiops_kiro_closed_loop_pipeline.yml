@@ -23,8 +23,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          ref: \${{ github.head_ref }}
-          token: \${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.head_ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -42,11 +42,9 @@ jobs:
           echo "=== Starting AIOps Code Analysis Gate ==="
           checkov -d . --soft-fail > checkov_report.json || true
           
-          # 🔑 FIXED: Clean grep lookup string execution
-          VIOLATIONS=\$(grep -c "FAILED for resource" checkov_report.json || echo "0")
+          VIOLATIONS=$(grep -c "FAILED for resource" checkov_report.json || echo "0")
           
-          # 🔑 FIXED: Quoted environment mapping blocks prevent the "Invalid format '0'" error
-          echo "violations=\({VIOLATIONS}" >> "\)GITHUB_OUTPUT"
+          echo "violations=${VIOLATIONS}" >> $GITHUB_OUTPUT
           
           echo "======================================================="
           echo "📊 AIOps Pipeline Metrics Collected!"
@@ -122,7 +120,7 @@ jobs:
           if ! git diff --quiet || ! git diff --staged --quiet; then
             # 🔑 FIXED: Appended [skip ci] tag to tell GitHub to skip running the dev pipeline on this push
             git commit -m "security(ops): autonomous compliance patch applied via AWS Kiro [skip ci]"
-            git push origin HEAD:\${{ github.head_ref }}
+            git push origin HEAD:${{ github.head_ref }}
           fi
 
       # 6. POST COMMENT TO PR SO THE USER IS INFORMED
