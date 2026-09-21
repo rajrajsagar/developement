@@ -19,7 +19,7 @@ terraform {
 # Data source to resolve current AWS account ID for use in KMS key policy
 data "aws_caller_identity" "current" {}
 
-# Customer-managed KMS key for EFS encryption (resolves CKV_AWS_184)
+# Customer-managed KMS key for EFS encryption
 resource "aws_kms_key" "efs_cmk" {
   description             = "CMK for wezvatech-sandbox-efs encryption"
   deletion_window_in_days = 30
@@ -47,7 +47,7 @@ resource "aws_kms_key" "efs_cmk" {
   }
 }
 
-# ✅ Fixed: EFS encryption enabled with customer-managed KMS key (resolves CKV_AWS_42, CKV_AWS_184)
+# ✅ Fixed: EFS File System with encryption enabled and CMK mapped (resolves CKV_AWS_42, CKV_AWS_184)
 resource "aws_efs_file_system" "demo_efs" {
   creation_token = "wezvatech-aiops-demo"
   encrypted      = true
@@ -59,7 +59,7 @@ resource "aws_efs_file_system" "demo_efs" {
   }
 }
 
-# ✅ Fixed: Backup policy enabled
+# ✅ Fixed: Backup policy enabled (resolves CKV_AWS_42 backup compliance)
 resource "aws_efs_backup_policy" "policy" {
   file_system_id = aws_efs_file_system.demo_efs.id
 
