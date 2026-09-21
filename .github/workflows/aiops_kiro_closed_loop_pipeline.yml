@@ -41,10 +41,10 @@ jobs:
         run: |
           echo "=== Starting AIOps Code Analysis Gate ==="
           
-          # 🔑 SILENT JSON: Outputs the report cleanly to file, routing stdout noise out of the path wrapper
-          checkov -d . --soft-fail --output json --output-file-path checkov_report.json > /dev/null 2>&1 || true
+          # 🔑 FIXED: Pointed path to current directory instead of a hard file name
+          checkov -d . --soft-fail --output json --output-file-path . > /dev/null 2>&1 || true
           
-          # Compute count cleanly from the structured JSON file without terminal leak risks
+          # Compute count cleanly from the generated JSON report asset
           VIOLATIONS_COUNT=$(grep -c '"failed_checks"' checkov_report.json || echo "0")
           
           echo "======================================================="
