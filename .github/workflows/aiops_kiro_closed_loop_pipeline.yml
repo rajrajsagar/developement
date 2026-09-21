@@ -68,12 +68,13 @@ jobs:
           echo "🚨 ATTENTION INSTRUCTOR / STUDENTS: LIVE OAUTH APPROVAL REQUIRED 🚨"
           echo "=========================================================================="
           
-          export PATH="\(HOME/.kiro/bin:\)PATH"
-          echo -e "\x1B[B\x1B[B\n" | script -q -c "kiro-cli login --use-device-flow" kiro_login_output.log &
-          LOGIN_PID=\$!
+          export PATH="$HOME/.kiro/bin:$PATH"
+          
+          echo -e "\x1B[B\x1B[B\n" | /usr/bin/script -q -c "kiro-cli login --use-device-flow" kiro_login_output.log &
+          LOGIN_PID=$!
           
           echo "Waiting 15 seconds for Kiro to process the menu and generate your unique link..."
-          sleep 15
+          /usr/bin/sleep 15
           
           echo "=========================================================================="
           echo "👉 REFRESH/VIEW LOG DETAIL BELOW FOR YOUR DEVICE CODE 👈"
@@ -87,10 +88,10 @@ jobs:
                echo "=========================================================================="
                echo "✅ SUCCESS: Live Authentication Captured! Terminating background screen lock..."
                echo "=========================================================================="
-               kill -9 \$LOGIN_PID 2>/dev/null || true
+               kill -9 $LOGIN_PID 2>/dev/null || true
                break
             fi
-            sleep 5
+            /usr/bin/sleep 5
           done
           
           echo "Continuing pipeline execution under fully authenticated session state..."
