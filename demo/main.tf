@@ -1,6 +1,7 @@
 # ------------------------------------------------------------------- #
 # Use this project to provision his creates an AWS Elastic File System (EFS) environment that deliberately breaks standard enterprise cloud compliance checks (like Checkov's CKV_AWS_184 and CKV_AWS_15 rules)
 # AUTHOR: ADAM M | +91-9739110917 | www.wezvatech.in
+# DUMMY CHECKIN DATE: Sep-15-2026
 # ------------------------------------------------------------------- #
 
 provider "aws" {
@@ -16,42 +17,10 @@ terraform {
   }
 }
 
-# Data source to resolve current AWS account ID for use in KMS key policy
-data "aws_caller_identity" "current" {}
-
-# Customer-managed KMS key for EFS encryption (resolves CKV_AWS_184)
-resource "aws_kms_key" "efs_cmk" {
-  description             = "CMK for wezvatech-sandbox-efs encryption"
-  deletion_window_in_days = 30
-  enable_key_rotation     = true
-
-  # Explicit key policy (resolves CKV2_AWS_64)
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "EnableRootAccountAccess"
-        Effect = "Allow"
-        Principal = {
-          AWS = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:root"
-        }
-        Action   = "kms:*"
-        Resource = "*"
-      }
-    ]
-  })
-
-  tags = {
-    Name        = "wezvatech-sandbox-efs-cmk"
-    Environment = "Dev"
-  }
-}
-
-# ✅ Fixed: EFS encryption enabled with customer-managed KMS key (resolves CKV_AWS_42, CKV_AWS_184)
+# ❌ Violation 1: EFS File System deployed without encryption enabled
 resource "aws_efs_file_system" "demo_efs" {
   creation_token = "wezvatech-aiops-demo"
-  encrypted      = true
-  kms_key_id     = aws_kms_key.efs_cmk.arn
+  encrypted      = false # Explicit policy violation (Should be true)
 
   tags = {
     Name        = "wezvatech-sandbox-efs"
@@ -59,12 +28,12 @@ resource "aws_efs_file_system" "demo_efs" {
   }
 }
 
-# ✅ Fixed: Backup policy enabled
+# ❌ Violation 2: Backup policy is explicitly disabled
 resource "aws_efs_backup_policy" "policy" {
   file_system_id = aws_efs_file_system.demo_efs.id
 
   backup_policy {
-    status = "ENABLED"
+    status = "DISABLED" # Explicit policy violation (Should be ENABLED)
   }
 }
 
