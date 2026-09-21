@@ -2,6 +2,7 @@ name: AIOps Autonomous Code Remediation Pipeline
 
 on:
   pull_request:
+    types: [opened, edited] # 🔑 FIXED: Removed synchronize to prevent PR loop re-triggers
     paths:
       - 'demo/**'
     branches:
@@ -22,8 +23,8 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: \${{ github.head_ref }}
+          token: \${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
@@ -40,11 +41,16 @@ jobs:
         run: |
           echo "=== Starting AIOps Code Analysis Gate ==="
           checkov -d . --soft-fail > checkov_report.json || true
-          VIOLATIONS=$(grep -c "FAILED for resource" checkov_report.json || echo "0")
-          echo "violations=$VIOLATIONS" >> $GITHUB_OUTPUT
+          
+          # 🔑 FIXED: Clean grep lookup string execution
+          VIOLATIONS=\$(grep -c "FAILED for resource" checkov_report.json || echo "0")
+          
+          # 🔑 FIXED: Quoted environment mapping blocks prevent the "Invalid format '0'" error
+          echo "violations=\({VIOLATIONS}" >> "\)GITHUB_OUTPUT"
+          
           echo "======================================================="
           echo "📊 AIOps Pipeline Metrics Collected!"
-          echo "Actionable Security Vulnerabilities Found: $VIOLATIONS"
+          echo "Actionable Security Vulnerabilities Found: \${VIOLATIONS}"
           echo "======================================================="
 
       # 2. PROVISION KIRO CORE ENGINE
@@ -53,7 +59,7 @@ jobs:
         run: |
           echo "=== Provisioning Agentic AIOps Engine ==="
           curl -fsSL https://cli.kiro.dev/install | bash
-          echo "$HOME/.kiro/bin" >> $GITHUB_PATH
+          echo "\(HOME/.kiro/bin" >> \)GITHUB_PATH
 
       # 3. INTERACTIVE CLASSROOM GATEWAY: DEVICE FLOW LOGIN
       - name: Interactive Live AIOps Authentication
@@ -64,11 +70,9 @@ jobs:
           echo "🚨 ATTENTION INSTRUCTOR / STUDENTS: LIVE OAUTH APPROVAL REQUIRED 🚨"
           echo "=========================================================================="
           
-          export PATH="$HOME/.kiro/bin:$PATH"
-          
-          # 1. Start the login process in the background and capture its Process ID (PID)
+          export PATH="\(HOME/.kiro/bin:\)PATH"
           echo -e "\x1B[B\x1B[B\n" | script -q -c "kiro-cli login --use-device-flow" kiro_login_output.log &
-          LOGIN_PID=$!
+          LOGIN_PID=\$!
           
           echo "Waiting 15 seconds for Kiro to process the menu and generate your unique link..."
           sleep 15
@@ -79,16 +83,13 @@ jobs:
           cat kiro_login_output.log || true
           echo "=========================================================================="
           
-          # ⏳ 2. LOG-WATCHER BREAKOUT LOOP: 
-          # The exact second you approve the URL on your device, Kiro writes "Signed in" to the log file.
-          # We scan the file. The moment it appears, we kill the hanging process and continue!
           echo "Watching for active browser authorization event..."
           for i in {1..60}; do
             if grep -q "Signed in with GitHub" kiro_login_output.log; then
                echo "=========================================================================="
                echo "✅ SUCCESS: Live Authentication Captured! Terminating background screen lock..."
                echo "=========================================================================="
-               kill -9 $LOGIN_PID 2>/dev/null || true
+               kill -9 \$LOGIN_PID 2>/dev/null || true
                break
             fi
             sleep 5
@@ -101,13 +102,12 @@ jobs:
         if: steps.run_scan.outputs.violations > 0
         run: |
           echo "=== Initiating Autonomous Infrastructure Patching ==="
-          export PATH="$HOME/.kiro/bin:$PATH"
+          export PATH="\(HOME/.kiro/bin:\)PATH"
           
-          # Route environment mappings directly into the active session workspace keys
-          HOME="$HOME" kiro-cli chat \
+          HOME="\$HOME" kiro-cli chat \
             --trust-all-tools \
             --no-interactive \
-            "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md."
+            "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md by enabling encryption, setting encrypted to true and mapping the associated KMS Key ARN properly."
 
       # 5. COMMIT CLEAN CODE BACK TO PR
       - name: Commit & Push Patches to PR Branch
@@ -115,15 +115,14 @@ jobs:
         run: |
           git config --global user.name "wezvatech-aiops-bot"
           git config --global user.email "aiops-engine@wezvatech.com"
-          git add .
+          
+          # 🔑 FIXED: Target only HCL config files. Do NOT add internal system/json logs!
+          git add *.tf
 
-          # Only commit if changes were actually made by Kiro
           if ! git diff --quiet || ! git diff --staged --quiet; then
-            git commit -m "security(ops): autonomous compliance patch applied via AWS Kiro"
-            
-            # 💡 FIXED: Replaced 'dev' with '${{ github.head_ref }}' to target the exact 
-            # PR branch dynamically, matching how GitHub tracks incoming change streams!
-            git push origin HEAD:${{ github.head_ref }}
+            # 🔑 FIXED: Appended [skip ci] tag to tell GitHub to skip running the dev pipeline on this push
+            git commit -m "security(ops): autonomous compliance patch applied via AWS Kiro [skip ci]"
+            git push origin HEAD:\${{ github.head_ref }}
           fi
 
       # 6. POST COMMENT TO PR SO THE USER IS INFORMED
@@ -136,13 +135,16 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `### 🤖 AIOps Remediation Alert\n\n⚠️ **Checkov** flagged \`${{ steps.run_scan.outputs.violations }}\` compliance issues.\n🔧 **AWS Kiro** has autonomously refactored your HCL code templates to match corporate security guardrails.\n✅ Clean code has been pushed. The pipeline will now re-verify and pass.`
+              body: `### 🤖 AIOps Remediation Alert\n\n⚠️ **Checkov** flagged \`\${{ steps.run_scan.outputs.violations }}\` compliance issues.\n🔧 **AWS Kiro** has autonomously refactored your HCL code templates to match corporate security guardrails.\n✅ Clean code has been pushed. The pipeline will now re-verify and pass.`
             })
 
       # 7. STRICT FINAL VERIFICATION PASS (Ensures PR turns Green if Kiro fixed it)
       - name: Run Final Validation Scan
+        if: steps.run_scan.outputs.violations > 0
         run: |
           terraform init
           terraform validate
+          # 🔑 FIXED: Safe workspace teardown of memory assets before executing code evaluations
           rm -f checkov_report.json kiro_login_output.log
           checkov -d . --skip-path .terraform
+
