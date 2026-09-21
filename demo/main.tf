@@ -59,12 +59,12 @@ resource "aws_efs_file_system" "demo_efs" {
   }
 }
 
-# ❌ Violation 2: Backup policy is explicitly disabled
+# ✅ Fixed: Backup policy enabled (resolves CKV_AWS_42 backup compliance)
 resource "aws_efs_backup_policy" "policy" {
   file_system_id = aws_efs_file_system.demo_efs.id
 
   backup_policy {
-    status = "DISABLED" # Explicit policy violation (Should be ENABLED)
+    status = "ENABLED"
   }
 }
 
