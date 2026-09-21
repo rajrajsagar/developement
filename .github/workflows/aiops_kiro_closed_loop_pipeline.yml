@@ -40,9 +40,7 @@ jobs:
         continue-on-error: true 
         run: |
           echo "=== Starting AIOps Code Analysis Gate ==="
-          
-          # 🔑 FIXED: Pointed path to current directory instead of a hard file name
-          checkov -d . --soft-fail --output json --output-file-path . > /dev/null 2>&1 || true
+          checkov -d . --soft-fail --output json > checkov_report.json 2>/dev/null || true
           
           # Compute count cleanly from the generated JSON report asset
           VIOLATIONS_COUNT=$(grep -c '"failed_checks"' checkov_report.json || echo "0")
