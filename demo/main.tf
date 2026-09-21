@@ -17,10 +17,23 @@ terraform {
   }
 }
 
-# ❌ Violation 1: EFS File System deployed without encryption enabled
+# KMS Customer Managed Key (CMK) for EFS encryption — required by CKV_AWS_184
+resource "aws_kms_key" "efs_cmk" {
+  description             = "CMK for wezvatech-sandbox-efs encryption"
+  deletion_window_in_days = 30
+  enable_key_rotation     = true
+
+  tags = {
+    Name        = "wezvatech-sandbox-efs-cmk"
+    Environment = "Dev"
+  }
+}
+
+# ✅ Fixed: EFS encryption enabled with a customer-managed KMS key (CKV_AWS_42, CKV_AWS_184)
 resource "aws_efs_file_system" "demo_efs" {
   creation_token = "wezvatech-aiops-demo"
-  encrypted      = false # Explicit policy violation (Should be true)
+  encrypted      = true
+  kms_key_id     = aws_kms_key.efs_cmk.arn
 
   tags = {
     Name        = "wezvatech-sandbox-efs"
@@ -28,12 +41,12 @@ resource "aws_efs_file_system" "demo_efs" {
   }
 }
 
-# ❌ Violation 2: Backup policy is explicitly disabled
+# ✅ Fixed: Backup policy enabled
 resource "aws_efs_backup_policy" "policy" {
   file_system_id = aws_efs_file_system.demo_efs.id
 
   backup_policy {
-    status = "DISABLED" # Explicit policy violation (Should be ENABLED)
+    status = "ENABLED"
   }
 }
 
