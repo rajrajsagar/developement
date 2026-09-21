@@ -35,6 +35,7 @@ jobs:
           pip install checkov
 
       # 1. EVALUATE COMPLIANCE STATE
+      # 1. EVALUATE COMPLIANCE STATE
       - name: Run Initial Checkov Scan
         id: run_scan
         continue-on-error: true 
@@ -42,12 +43,13 @@ jobs:
           echo "=== Starting AIOps Code Analysis Gate ==="
           checkov -d . --soft-fail > checkov_report.json || true
           
-          VIOLATIONS=$(grep -c "FAILED for resource" checkov_report.json || echo "0")
+          VIOLATIONS_COUNT=$(grep -c "FAILED for resource" checkov_report.json || echo "0")
           
-          echo "violations=${VIOLATIONS}" >> $GITHUB_OUTPUT
+          echo "violations=$VIOLATIONS_COUNT" >> "$GITHUB_OUTPUT"
+          
           echo "======================================================="
           echo "📊 AIOps Pipeline Metrics Collected!"
-          echo "Actionable Security Vulnerabilities Found: ${VIOLATIONS}"
+          echo "Actionable Security Vulnerabilities Found: $VIOLATIONS_COUNT"
           echo "======================================================="
 
       # 2. PROVISION KIRO CORE ENGINE
