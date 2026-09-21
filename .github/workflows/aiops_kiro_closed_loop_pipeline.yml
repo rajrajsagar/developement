@@ -45,10 +45,10 @@ jobs:
           VIOLATIONS=$(grep -c "FAILED for resource" checkov_report.json || echo "0")
           
           echo "violations=${VIOLATIONS}" >> $GITHUB_OUTPUT
-          
+          `
           echo "======================================================="
           echo "📊 AIOps Pipeline Metrics Collected!"
-          echo "Actionable Security Vulnerabilities Found: \${VIOLATIONS}"
+          echo "Actionable Security Vulnerabilities Found: ${VIOLATIONS}"
           echo "======================================================="
 
       # 2. PROVISION KIRO CORE ENGINE
@@ -57,7 +57,7 @@ jobs:
         run: |
           echo "=== Provisioning Agentic AIOps Engine ==="
           curl -fsSL https://cli.kiro.dev/install | bash
-          echo "\(HOME/.kiro/bin" >> \)GITHUB_PATH
+          echo "$HOME/.kiro/bin" >> $GITHUB_PATH
 
       # 3. INTERACTIVE CLASSROOM GATEWAY: DEVICE FLOW LOGIN
       - name: Interactive Live AIOps Authentication
@@ -101,9 +101,9 @@ jobs:
         if: steps.run_scan.outputs.violations > 0
         run: |
           echo "=== Initiating Autonomous Infrastructure Patching ==="
-          export PATH="\(HOME/.kiro/bin:\)PATH"
+          export PATH="$HOME/.kiro/bin:$PATH"
           
-          HOME="\$HOME" kiro-cli chat \
+          kiro-cli chat \
             --trust-all-tools \
             --no-interactive \
             "Review the infrastructure vulnerabilities logged in checkov_report.json. Apply the exact HCL fixes to main.tf matching the structural requirements outlined in the file ../.kiro/security-guardrails.md by enabling encryption, setting encrypted to true and mapping the associated KMS Key ARN properly."
