@@ -147,6 +147,7 @@ jobs:
               body: commentBody
             })
 
+
       # 7. STRICT FINAL VERIFICATION PASS (Ensures PR turns Green if Kiro fixed it)
       - name: Run Final Validation Scan
         if: steps.run_scan.outputs.violations > 0
@@ -156,3 +157,4 @@ jobs:
           # 🔑 FIXED: Safe workspace teardown of memory assets before executing code evaluations
           rm -f checkov_report.json kiro_login_output.log
           checkov -d . --skip-path .terraform
+
