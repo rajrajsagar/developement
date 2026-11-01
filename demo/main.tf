@@ -47,7 +47,7 @@ resource "aws_kms_key" "efs_cmk" {
   }
 }
 
-# ✅ Fixed: EFS File System with encryption enabled and CMK assigned
+# ✅ Remediated: EFS File System with encryption enabled and CMK mapped (resolves CKV_AWS_42, CKV_AWS_184)
 resource "aws_efs_file_system" "demo_efs" {
   creation_token = "wezvatech-aiops-demo"
   encrypted      = true
