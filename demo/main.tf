@@ -50,8 +50,8 @@ resource "aws_kms_key" "efs_cmk" {
 # ❌ Violation 1: EFS File System deployed without encryption enabled
 resource "aws_efs_file_system" "demo_efs" {
   creation_token = "wezvatech-aiops-demo"
-  encrypted      = true # Explicit policy violation (Should be tr
-  kms_key_id     = aws_kms_key.efs_cmk.arn
+  encrypted      = false # Explicit policy violation (Should be tr
+  #kms_key_id     = aws_kms_key.efs_cmk.arn
 
   tags = {
     Name        = "wezvatech-sandbox-efs"
